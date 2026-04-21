@@ -18,25 +18,36 @@ function useMarketNews() {
   return { news, loading }
 }
 
-// Fixed TradingView ticker tape with correct symbol strings
+// Ticker tape using ETFs — these always have full data in the TradingView tape widget
+// SPY = S&P 500, QQQ = Nasdaq 100, VIXY = VIX proxy, UUP = USD, GLD = Gold, USO = Oil
 function TradingViewTape() {
   const ref = useRef(null)
+  const mounted = useRef(false)
 
   useEffect(() => {
-    if (!ref.current) return
-    ref.current.innerHTML = ''
+    if (!ref.current || mounted.current) return
+    mounted.current = true
+
+    const container = document.createElement('div')
+    container.className = 'tradingview-widget-container'
+
+    const widget = document.createElement('div')
+    widget.className = 'tradingview-widget-container__widget'
+    container.appendChild(widget)
+
     const script = document.createElement('script')
+    script.type = 'text/javascript'
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js'
     script.async = true
     script.innerHTML = JSON.stringify({
       symbols: [
-        { proName: 'SP:SPX',      title: 'S&P 500'   },
-        { proName: 'NASDAQ:QQQ',  title: 'QQQ'       },
-        { proName: 'NASDAQ:NDX',  title: 'NASDAQ 100' },
-        { proName: 'TVC:VIX',     title: 'VIX'       },
-        { proName: 'TVC:DXY',     title: 'DXY'       },
-        { proName: 'TVC:GOLD',    title: 'Gold'      },
-        { proName: 'TVC:USOIL',   title: 'Crude Oil' },
+        { proName: 'AMEX:SPY',   title: 'S&P 500 (SPY)'    },
+        { proName: 'NASDAQ:QQQ', title: 'Nasdaq 100 (QQQ)'  },
+        { proName: 'AMEX:VIXY',  title: 'VIX (VIXY)'        },
+        { proName: 'AMEX:UUP',   title: 'US Dollar (UUP)'   },
+        { proName: 'AMEX:GLD',   title: 'Gold (GLD)'        },
+        { proName: 'AMEX:USO',   title: 'Crude Oil (USO)'   },
+        { proName: 'AMEX:IWM',   title: 'Russell 2000 (IWM)'},
       ],
       showSymbolLogo: false,
       isTransparent: true,
@@ -44,26 +55,37 @@ function TradingViewTape() {
       colorTheme: 'dark',
       locale: 'en'
     })
-    ref.current.appendChild(script)
+    container.appendChild(script)
+    ref.current.appendChild(container)
   }, [])
 
   return (
-    <div style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-      <div ref={ref} className="tradingview-widget-container">
-        <div className="tradingview-widget-container__widget" />
-      </div>
-    </div>
+    <div ref={ref} style={{
+      marginBottom: 24, borderRadius: 12, overflow: 'hidden',
+      background: 'var(--bg2)', border: '1px solid var(--border)',
+      minHeight: 46
+    }} />
   )
 }
 
-// Real live economic calendar from TradingView — no API key, no fake data
+// Live TradingView economic calendar — real USD events, no fake data
 function EconomicCalendar() {
   const ref = useRef(null)
+  const mounted = useRef(false)
 
   useEffect(() => {
-    if (!ref.current) return
-    ref.current.innerHTML = ''
+    if (!ref.current || mounted.current) return
+    mounted.current = true
+
+    const container = document.createElement('div')
+    container.className = 'tradingview-widget-container'
+
+    const widget = document.createElement('div')
+    widget.className = 'tradingview-widget-container__widget'
+    container.appendChild(widget)
+
     const script = document.createElement('script')
+    script.type = 'text/javascript'
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-events.js'
     script.async = true
     script.innerHTML = JSON.stringify({
@@ -72,17 +94,15 @@ function EconomicCalendar() {
       width: '100%',
       height: '500',
       locale: 'en',
-      importanceFilter: '0,1',   // 0 = medium, 1 = high impact only
-      currencyFilter: 'USD',     // US events only
+      importanceFilter: '0,1',
+      currencyFilter: 'USD',
     })
-    ref.current.appendChild(script)
+    container.appendChild(script)
+    ref.current.appendChild(container)
   }, [])
 
   return (
-    <div ref={ref} className="tradingview-widget-container"
-      style={{ minHeight: 500 }}>
-      <div className="tradingview-widget-container__widget" />
-    </div>
+    <div ref={ref} style={{ minHeight: 500 }} />
   )
 }
 
@@ -180,9 +200,11 @@ export default function Dashboard() {
               <h2 style={{ fontFamily: 'var(--font-head)', fontSize: 15, fontWeight: 700, marginBottom: 2 }}>
                 Economic Calendar
               </h2>
-              <p className="muted small">Live · USD events · medium & high impact</p>
+              <p className="muted small">Live · USD · medium & high impact</p>
             </div>
-            <EconomicCalendar />
+            <div style={{ padding: '0 4px' }}>
+              <EconomicCalendar />
+            </div>
           </div>
 
           {/* Pre-market checklist */}
