@@ -9,7 +9,6 @@ function useMarketNews() {
   useEffect(() => {
     const key = import.meta.env.VITE_MARKETAUX_KEY
     if (!key) { setLoading(false); return }
-
     fetch(`https://api.marketaux.com/v1/news/all?filter_entities=true&language=en&api_token=${key}`)
       .then(r => r.json())
       .then(d => { if (d.data) setNews(d.data.slice(0, 12)); setLoading(false) })
@@ -19,7 +18,7 @@ function useMarketNews() {
   return { news, loading }
 }
 
-// TradingView ticker tape — live SPY, QQQ, VIX, DXY
+// Fixed TradingView ticker tape with correct symbol strings
 function TradingViewTape() {
   const ref = useRef(null)
 
@@ -31,12 +30,13 @@ function TradingViewTape() {
     script.async = true
     script.innerHTML = JSON.stringify({
       symbols: [
-        { proName: 'FOREXCOM:SPXUSD', title: 'S&P 500' },
-        { proName: 'NASDAQ:QQQ',      title: 'NASDAQ (QQQ)' },
-        { proName: 'CBOE:VIX',        title: 'VIX' },
-        { proName: 'TVC:DXY',         title: 'DXY' },
-        { proName: 'COMEX:GC1!',      title: 'Gold' },
-        { proName: 'NYMEX:CL1!',      title: 'Crude Oil' },
+        { proName: 'SP:SPX',      title: 'S&P 500'   },
+        { proName: 'NASDAQ:QQQ',  title: 'QQQ'       },
+        { proName: 'NASDAQ:NDX',  title: 'NASDAQ 100' },
+        { proName: 'TVC:VIX',     title: 'VIX'       },
+        { proName: 'TVC:DXY',     title: 'DXY'       },
+        { proName: 'TVC:GOLD',    title: 'Gold'      },
+        { proName: 'TVC:USOIL',   title: 'Crude Oil' },
       ],
       showSymbolLogo: false,
       isTransparent: true,
@@ -48,19 +48,43 @@ function TradingViewTape() {
   }, [])
 
   return (
-    <div ref={ref} className="tradingview-widget-container"
-      style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-      <div className="tradingview-widget-container__widget" />
+    <div style={{ marginBottom: 24, borderRadius: 12, overflow: 'hidden', background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+      <div ref={ref} className="tradingview-widget-container">
+        <div className="tradingview-widget-container__widget" />
+      </div>
     </div>
   )
 }
 
-const ECON_EVENTS = [
-  { time: '08:30', event: 'Initial Jobless Claims',  impact: 'medium', forecast: '215K',  prev: '219K' },
-  { time: '10:00', event: 'ISM Manufacturing PMI',   impact: 'high',   forecast: '48.5',  prev: '47.8' },
-  { time: '14:00', event: 'FOMC Meeting Minutes',    impact: 'high',   forecast: '—',     prev: '—'    },
-  { time: '15:00', event: 'Natural Gas Inventories', impact: 'low',    forecast: '-32B',  prev: '-41B' },
-]
+// Real live economic calendar from TradingView — no API key, no fake data
+function EconomicCalendar() {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!ref.current) return
+    ref.current.innerHTML = ''
+    const script = document.createElement('script')
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-events.js'
+    script.async = true
+    script.innerHTML = JSON.stringify({
+      colorTheme: 'dark',
+      isTransparent: true,
+      width: '100%',
+      height: '500',
+      locale: 'en',
+      importanceFilter: '0,1',   // 0 = medium, 1 = high impact only
+      currencyFilter: 'USD',     // US events only
+    })
+    ref.current.appendChild(script)
+  }, [])
+
+  return (
+    <div ref={ref} className="tradingview-widget-container"
+      style={{ minHeight: 500 }}>
+      <div className="tradingview-widget-container__widget" />
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const { news, loading: newsLoading } = useMarketNews()
@@ -91,15 +115,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Live TradingView ticker tape */}
+      {/* Live ticker tape */}
       <TradingViewTape />
 
       {/* Main two-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, alignItems: 'start' }}>
 
         {/* Left — News & Catalysts */}
         <div className="card">
-          <h2 style={{ fontFamily: 'var(--font-head)', fontSize: 15, fontWeight: 700, marginBottom: 4, letterSpacing: '0.02em' }}>
+          <h2 style={{ fontFamily: 'var(--font-head)', fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
             News & Catalysts
           </h2>
           <p className="muted small" style={{ marginBottom: 18 }}>Latest market-moving headlines</p>
@@ -134,15 +158,12 @@ export default function Dashboard() {
               <p style={{ color: 'var(--text2)', fontSize: 13, marginBottom: 10 }}>
                 Connect a free news API to see live headlines here.
               </p>
-              <div style={{
-                background: 'var(--bg3)', borderRadius: 8, padding: '12px 14px',
-                border: '1px solid var(--border)'
-              }}>
+              <div style={{ background: 'var(--bg3)', borderRadius: 8, padding: '12px 14px', border: '1px solid var(--border)' }}>
                 <p style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>To enable live news:</p>
                 <ol style={{ fontSize: 12, color: 'var(--text3)', paddingLeft: 16, lineHeight: 2 }}>
                   <li>Sign up free at <span style={{ color: 'var(--blue)' }}>marketaux.com</span></li>
                   <li>Copy your API token</li>
-                  <li>In Netlify → Site settings → Environment variables</li>
+                  <li>Netlify → Site settings → Environment variables</li>
                   <li>Add <code style={{ fontFamily: 'var(--font-mono)', background: 'var(--bg4)', padding: '1px 5px', borderRadius: 4 }}>VITE_MARKETAUX_KEY</code> = your token</li>
                   <li>Redeploy the site</li>
                 </ol>
@@ -151,38 +172,17 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Right — Economic Calendar + Checklist */}
+        {/* Right — Live Economic Calendar + Checklist */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          <div className="card">
-            <h2 style={{ fontFamily: 'var(--font-head)', fontSize: 15, fontWeight: 700, marginBottom: 4, letterSpacing: '0.02em' }}>
-              Economic Calendar
-            </h2>
-            <p className="muted small" style={{ marginBottom: 16 }}>Today's key events (ET)</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {ECON_EVENTS.map((ev, i) => (
-                <div key={i} style={{
-                  background: 'var(--bg3)', borderRadius: 8, padding: '12px 14px',
-                  borderLeft: `3px solid ${ev.impact === 'high' ? 'var(--red)' : ev.impact === 'medium' ? 'var(--amber)' : 'var(--text3)'}`,
-                  animation: `fadeUp 0.3s ${i * 0.07}s both`
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                    <span className="mono small" style={{ color: 'var(--text2)' }}>{ev.time} ET</span>
-                    <span className={`badge ${ev.impact === 'high' ? 'badge-red' : ev.impact === 'medium' ? 'badge-amber' : 'badge-gray'}`}>
-                      {ev.impact}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>{ev.event}</div>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 12, fontFamily: 'var(--font-mono)' }}>
-                    <span style={{ color: 'var(--text3)' }}>Fcst <span style={{ color: 'var(--text2)' }}>{ev.forecast}</span></span>
-                    <span style={{ color: 'var(--text3)' }}>Prev <span style={{ color: 'var(--text2)' }}>{ev.prev}</span></span>
-                  </div>
-                </div>
-              ))}
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--border)' }}>
+              <h2 style={{ fontFamily: 'var(--font-head)', fontSize: 15, fontWeight: 700, marginBottom: 2 }}>
+                Economic Calendar
+              </h2>
+              <p className="muted small">Live · USD events · medium & high impact</p>
             </div>
-            <p style={{ fontSize: 11, color: 'var(--text3)', marginTop: 12 }}>
-              * Calendar events are illustrative. Connect a live econ calendar API to populate real data.
-            </p>
+            <EconomicCalendar />
           </div>
 
           {/* Pre-market checklist */}
